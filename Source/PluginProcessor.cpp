@@ -31,6 +31,16 @@ namespace
         return range;
     }
 
+    /** The fade's rate, along its knob's uneven engraving. */
+    NormalisableRange<float> rateRange()
+    {
+        using namespace layout;
+        return { kRateMarks[0], kRateMarks[kNumRateMarks - 1],
+                 [] (float, float, float proportion) { return rateFromProportion (proportion); },
+                 [] (float, float, float seconds) { return rateProportion (seconds); },
+                 [] (float, float, float seconds) { return jlimit (kRateMarks[0], kRateMarks[kNumRateMarks - 1], seconds); } };
+    }
+
     AudioProcessorValueTreeState::ParameterLayout createLayout()
     {
         using namespace layout;
@@ -49,7 +59,7 @@ namespace
 
         // The compressor, as on the front.
         number ("threshold", "Threshold", { -15.0f, 15.0f, 0.1f }, defaults.threshold, reading ("dB", 1, true));
-        number ("makeup", "Make-Up", { -5.0f, 15.0f, 0.1f }, defaults.makeup, reading ("dB", 1, true));
+        number ("makeup", "Make-Up", { 0.0f, 15.0f, 0.1f }, defaults.makeup, reading ("dB", 1, true));
         choice ("attack", "Attack", { "0.1 ms", "0.3 ms", "1 ms", "3 ms", "10 ms", "30 ms" }, defaults.attack);
         choice ("release", "Release", { "0.1 s", "0.3 s", "0.6 s", "1.2 s", "Auto" }, defaults.release);
         choice ("ratio", "Ratio", { "2:1", "4:1", "10:1" }, defaults.ratio);
@@ -66,7 +76,7 @@ namespace
         number ("mix", "Mix", { 0.0f, 100.0f, 0.1f }, defaults.mix, reading ("%", 0));
 
         // The auto fade.
-        number ("rate", "Fade Rate", skewed (kRateMin, kRateMax, kRateCentre), defaults.rate, reading ("s", 1));
+        number ("rate", "Fade Rate", rateRange(), defaults.rate, reading ("s", 1));
         parameters.add (std::make_unique<AudioParameterBool> (ParameterID { "fade", 1 }, "Auto Fade", defaults.fade));
 
         parameters.add (std::make_unique<AudioParameterBool> (ParameterID { "bypass", 1 }, "Bypass", false));

@@ -169,7 +169,7 @@ float roundCone (V p, V a, V b, float r1, float r2)
 
 
 //==============================================================================
-enum class Material { panel, face, plastic, cap, paint, aluminium, bezel, lens, lensLit, nickel, hollow };
+enum class Material { panel, face, rim, knob, pointer, bezel, lens, lensLit, steel, blackSteel, hollow };
 
 /** A part standing on the front, in its own frame: its centre on the origin,
     the front at z = 0, z towards the camera, y down as on the screen. */
@@ -198,60 +198,71 @@ struct Turned
 };
 
 
-/** A console knob: a thin brushed aluminium skirt at its foot, a tall
-    knurled body of dark grey plastic, a dished cap on top, and the white
-    pointer line across the cap and down onto the skirt. */
+/** A rectangle's signed distance in two dimensions, its corners rounded by r. */
+float roundRect (float x, float y, float halfX, float halfY, float r)
+{
+    const auto qx = std::fabs (x) - halfX + r, qy = std::fabs (y) - halfY + r;
+    return std::sqrt (std::fmax (qx, 0.0f) * std::fmax (qx, 0.0f) + std::fmax (qy, 0.0f) * std::fmax (qy, 0.0f))
+           + std::fmin (std::fmax (qx, qy), 0.0f) - r;
+}
+
+/** A shape drawn in two dimensions (d2) raised from z = 0 to `height`, its edges rounded by r. */
+float raise (float d2, float z, float height, float r)
+{
+    const auto wx = d2 + r, wy = std::fabs (z - 0.5f * height) - 0.5f * height + r;
+    return std::sqrt (std::fmax (wx, 0.0f) * std::fmax (wx, 0.0f) + std::fmax (wy, 0.0f) * std::fmax (wy, 0.0f))
+           + std::fmin (std::fmax (wx, wy), 0.0f) - r;
+}
+
+/** The console's knob: a squat cylinder of light grey plastic, its top
+    rounded off and gently domed, a black line from the middle out over the
+    edge and down the side. */
 struct Knob final : Part
 {
-    Knob (float radius, float a) : R (radius), angle (a) { reach = R + 1.0f; top = 0.84f * R; }
+    Knob (float radius, float a) : R (radius), angle (a) { reach = R + 1.0f; top = h + 0.1f * R; }
 
     float distance (V p) const override
     {
-        const Turned t (p, angle);
-        const auto skirt = roundCylinder (p - V { 0, 0, 0.07f * R }, R, 0.07f * R, 0.035f * R);
-        const auto rib = 0.012f * R * std::cos (32.0f * t.theta);
-        auto body = roundCylinder (p - V { 0, 0, 0.4f * R }, 0.72f * R + rib, 0.4f * R, 0.1f * R);
-
-        // The cap's dish: a shallow hollow, as a large sphere just touching it.
-        body = std::fmax (body, -(length (p - V { 0, 0, 3.77f * R }) - 3.0f * R));
-        return smin (skirt, body, 0.04f * R);
+        const auto full = h + 0.04f * R;
+        const auto body = roundCylinder (p - V { 0, 0, 0.5f * full }, R, 0.5f * full, 0.22f * R);
+        return std::fmax (body, length (p - V { 0, 0, full - 3.0f * R }) - 3.0f * R);
     }
 
     Material material (V p) const override
     {
         const Turned t (p, angle);
-        const auto onLine = std::fabs (t.across) < 0.05f * R && t.along > 0.0f;
 
-        if (p.z > 0.74f * R && t.radius < 0.66f * R)
-            return onLine && t.along > 0.14f * R ? Material::paint : Material::cap;
+        if (std::fabs (t.across) < 0.085f * R && t.along > 0.12f * R)
+            return Material::pointer;
 
-        if (p.z < 0.16f * R && t.radius > 0.76f * R)
-            return onLine ? Material::paint : Material::aluminium;
-
-        return Material::plastic;
+        return Material::knob;
     }
 
     float R, angle;
+    float h = 0.52f * R;
 };
 
-/** A square push button: its cap of cream plastic, lit from behind when it is
-    in, sitting a little lower then, in a black bezel. */
+/** A square push button: a thick black bezel with sloping sides, and in it
+    a cap of frosted plastic, grey when out, lit from behind when in, sitting
+    a little lower then. */
 struct Button final : Part
 {
-    explicit Button (bool on) : lit (on) { reach = 1.5f * H + 2.0f; top = 12.0f; }
+    explicit Button (bool on) : lit (on) { reach = 1.42f * kBezelHalf + 1.0f; top = kRise + 1.0f; }
 
-    static constexpr float H = kButtonHalf;
+    static constexpr float kRise = 8.0f;
 
     float bezel (V p) const
     {
-        const auto outer = roundBox (p - V { 0, 0, 1.6f }, { H + 4.0f, H + 4.0f, 1.6f }, 1.2f);
-        const auto hole = roundBox (p, { H + 0.9f, H + 0.9f, 6.0f }, 1.8f);
+        const auto slope = 4.0f * clamp01 (p.z / kRise);
+        const auto outer = raise (roundRect (p.x, p.y, kBezelHalf - slope, kBezelHalf - slope, 2.5f) * 0.92f, p.z, kRise, 1.4f);
+        const auto hole = std::fmax (roundRect (p.x, p.y, kCapHalf + 1.2f, kCapHalf + 1.2f, 2.0f), 1.0f - p.z);
         return std::fmax (outer, -hole);
     }
 
     float cap (V p) const
     {
-        return roundBox (p - V { 0, 0, (lit ? 4.0f : 5.5f) }, { H, H, 5.0f }, 2.4f);
+        const auto capTop = lit ? 6.2f : 7.0f;
+        return roundBox (p - V { 0, 0, 0.5f * (1.0f + capTop) }, { kCapHalf, kCapHalf, 0.5f * (capTop - 1.0f) }, 1.6f);
     }
 
     float distance (V p) const override { return std::fmin (bezel (p), cap (p)); }
@@ -260,21 +271,79 @@ struct Button final : Part
     bool lit;
 };
 
-/** A slotted, domed nickel screw. */
-struct ScrewPart final : Part
+/** The headroom trim: a slotted steel screw in a small black collar, set
+    almost flush with the front. */
+struct Trim final : Part
 {
-    explicit ScrewPart (const Screw& s) : slot (s.slot) { at = { s.x, s.y, 0.0f }; reach = kScrewRadius + 1.0f; top = 4.0f; }
+    explicit Trim (float a) : angle (a) { reach = kTrimRadius + 1.0f; top = 2.6f; }
+
+    float head (V p) const
+    {
+        const Turned t (p, angle);
+        const auto dome = roundCylinder (p - V { 0, 0, 0.9f }, 0.68f * kTrimRadius, 0.9f, 0.7f);
+        return std::fmax (dome, -roundBox ({ t.across, t.along, p.z - 2.0f }, { 0.75f, 0.8f * kTrimRadius, 1.0f }, 0.2f));
+    }
+
+    float collar (V p) const
+    {
+        return std::fmax (torus (p - V { 0, 0, 0.9f }, 0.84f * kTrimRadius, 0.16f * kTrimRadius), -p.z);
+    }
+
+    float distance (V p) const override { return std::fmin (head (p), collar (p)); }
+    Material material (V p) const override { return head (p) < collar (p) ? Material::steel : Material::bezel; }
+
+    float angle;
+};
+
+/** The meter's black case standing on the front, its sides sloping, its
+    window cut down to the dark face the scale is printed on. */
+struct MeterCase final : Part
+{
+    MeterCase()
+    {
+        at = { 0.5f * (kCaseLeft + kCaseRight), 0.5f * (kCaseTop + kCaseBottom), 0.0f };
+        reach = std::sqrt (halfX * halfX + halfY * halfY) + 1.0f;
+        top = kCaseHeight + 0.5f;
+    }
+
+    static constexpr float halfX = 0.5f * (kCaseRight - kCaseLeft), halfY = 0.5f * (kCaseBottom - kCaseTop), kFloor = 1.5f;
+
+    float window (V p) const
+    {
+        const auto cx = 0.5f * (kMeterLeft + kMeterRight) - at.x, cy = 0.5f * (kMeterTop + kMeterBottom) - at.y;
+        return roundRect (p.x - cx, p.y - cy, 0.5f * (kMeterRight - kMeterLeft), 0.5f * (kMeterBottom - kMeterTop), 3.0f);
+    }
 
     float distance (V p) const override
     {
-        auto head = std::fmax (roundCylinder (p - V { 0, 0, 1.5f }, kScrewRadius, 1.5f, 1.3f), length (p - V { 0, 0, -16.0f }) - 19.0f);
-        const auto along = p.x * std::cos (slot) + p.y * std::sin (slot), across = -p.x * std::sin (slot) + p.y * std::cos (slot);
-        return std::fmax (head, -roundBox ({ along, across, p.z - 3.3f }, { 10.2f, 0.9f, 2.2f }, 0.3f));
+        const auto slope = 3.0f * clamp01 (p.z / kCaseHeight);
+        const auto body = raise (roundRect (p.x, p.y, halfX - slope, halfY - slope, 3.0f) * 0.95f, p.z, kCaseHeight, 1.2f);
+        return std::fmax (body, -std::fmax (window (p), kFloor - p.z));
     }
 
-    Material material (V) const override { return Material::nickel; }
+    Material material (V p) const override
+    {
+        if (p.z < kFloor + 0.05f && window (p) < 0.3f)
+            return Material::face;
 
-    float slot;
+        // A grey frame round the window, as on the original's case.
+        return window (p) < 3.2f && p.z > kCaseHeight - 1.5f ? Material::rim : Material::bezel;
+    }
+};
+
+/** The meter's zero screw, on its case under the window. */
+struct ZeroScrew final : Part
+{
+    ZeroScrew() { at = { kZeroScrewX, kZeroScrewY, 0.0f }; reach = kZeroScrewRadius + 1.0f; top = kCaseHeight + 1.8f; }
+
+    float distance (V p) const override
+    {
+        const auto head = roundCylinder (p - V { 0, 0, kCaseHeight + 0.6f }, kZeroScrewRadius, 0.6f, 0.5f);
+        const auto along = p.x * 0.8f + p.y * 0.6f, across = -p.x * 0.6f + p.y * 0.8f;
+        return std::fmax (head, -roundBox ({ along, across, p.z - kCaseHeight - 1.3f }, { kZeroScrewRadius - 1.0f, 0.9f, 0.6f }, 0.2f));
+    }
+
+    Material material (V) const override { return Material::blackSteel; }
 };
 
 //==============================================================================
@@ -290,7 +359,6 @@ struct Surface
 struct Scene
 {
     std::vector<const Part*> parts;
-    bool meter = false;                 // the meter's window cut through the front, its face behind
     const std::vector<float>* ink = nullptr;
     int inkWidth = 0, inkHeight = 0;
 };
@@ -302,17 +370,6 @@ struct Hit
     Material material = Material::panel;
     const Part* part = nullptr;
 };
-
-constexpr float kFaceDepth = 7.0f;
-
-bool inMeter (float x, float y)
-{
-    // The window's corners rounded a little.
-    constexpr float r = 6.0f;
-    const auto dx = std::fmax (0.0f, std::fmax (kMeterLeft + r - x, x - (kMeterRight - r)));
-    const auto dy = std::fmax (0.0f, std::fmax (kMeterTop + r - y, y - (kMeterBottom - r)));
-    return x > kMeterLeft && x < kMeterRight && y > kMeterTop && y < kMeterBottom && dx * dx + dy * dy < r * r;
-}
 
 /** The ray's way into a part's cylinder: from t0 to t1, or nothing. */
 bool enter (const Part& part, V o, V d, float& t0, float& t1)
@@ -365,42 +422,14 @@ bool intersect (const Scene& scene, V o, V d, Hit& hit, float limit = 1.0e30f)
     hit.t = limit;
     bool found = false;
 
-    // The front: a plane, cut through at the meter, its lit face behind.
+    // The front: a plane.
     if (d.z < -1.0e-6f)
     {
         const auto t = -o.z / d.z;
 
         if (t > 1.0e-4f && t < hit.t)
         {
-            const auto p = o + d * t;
-
-            if (scene.meter && inMeter (p.x, p.y))
-            {
-                const auto behind = (-kFaceDepth - o.z) / d.z;
-
-                if (behind < hit.t)
-                {
-                    hit = { behind, o + d * behind, { 0, 0, 1 }, Material::face, nullptr };
-                    found = true;
-                }
-            }
-            else
-            {
-                hit = { t, p, { 0, 0, 1 }, Material::panel, nullptr };
-                found = true;
-            }
-        }
-    }
-
-    // From the face, up through the front: only the window lets it out.
-    if (scene.meter && o.z < -1.0e-3f && d.z > 1.0e-6f)
-    {
-        const auto t = -o.z / d.z;
-        const auto p = o + d * t;
-
-        if (t < hit.t && ! inMeter (p.x, p.y))
-        {
-            hit = { t, p, { 0, 0, -1 }, Material::hollow, nullptr };
+            hit = { t, o + d * t, { 0, 0, 1 }, Material::panel, nullptr };
             found = true;
         }
     }
@@ -414,7 +443,7 @@ bool intersect (const Scene& scene, V o, V d, Hit& hit, float limit = 1.0e30f)
 
         auto t = t0;
 
-        for (int i = 0; i < 300 && t < t1 && t < hit.t; ++i)
+        for (int i = 0; i < 400 && t < t1 && t < hit.t; ++i)
         {
             const auto distance = part->distance (o + d * t - part->at);
 
@@ -426,7 +455,7 @@ bool intersect (const Scene& scene, V o, V d, Hit& hit, float limit = 1.0e30f)
                 break;
             }
 
-            // The knurls and the dish bend the distances a little: step short of them.
+            // The sloping sides and the dome bend the distances a little: step short of them.
             t += std::fmax (distance * 0.7f, 0.001f);
         }
     }
@@ -476,10 +505,8 @@ V studio (V d)
     return { v * 1.02f, v, v * 0.97f };
 }
 
-const V kPanelColour { 0.058f, 0.058f, 0.062f };   // the console's dark grey
-const V kInkColour { 0.74f, 0.73f, 0.7f };
-const V kFaceColour { 0.78f, 0.65f, 0.4f };         // the meter's cream card
-const V kFaceInk { 0.025f, 0.022f, 0.02f };
+const V kPanelColour { 0.024f, 0.025f, 0.027f };   // the console's dark grey
+const V kInkColour { 0.74f, 0.74f, 0.72f };
 
 float inkAt (const Scene& scene, float x, float y)
 {
@@ -505,89 +532,93 @@ Surface surfaceAt (const Scene& scene, Hit& hit)
     {
         case Material::panel:
         {
-            // Satin paint: its colour drifts a little from place to place, and
-            // its surface has the faint orange peel of a sprayed coat.
-            const auto drift = 1.0f + 0.07f * (fbm (p * 0.02f) - 0.5f);
+            // Satin paint, sprayed: its colour drifts from place to place, a
+            // fine grain over it, and the faint orange peel of the coat. The
+            // edge of the front is folded, and catches more light.
+            const auto drift = 1.0f + 0.07f * (fbm (p * 0.02f) - 0.5f) + 0.16f * (noise (p * 1.7f) - 0.5f);
             constexpr float e = 0.15f;
             const auto q = p * 0.9f;
             const auto gx = noise (q + V { e, 0, 0 }) - noise (q - V { e, 0, 0 }), gy = noise (q + V { 0, e, 0 }) - noise (q - V { 0, e, 0 });
             hit.n = norm ({ -gx * 0.05f, -gy * 0.05f, 1.0f });
 
+            const auto edge = std::fmin (std::fmin (p.x, (float) kWidth - p.x), std::fmin (p.y, (float) kHeight - p.y));
+            // Darker towards the corners, as the original's photograph is, its very edge a dark line.
+            const auto cx = (p.x / (float) kWidth - 0.5f) * 2.0f, cy = (p.y / (float) kHeight - 0.5f) * 2.0f;
+            const auto rim = (edge < 1.5f ? 0.45f : edge < 5.0f ? 1.5f : 1.0f) * (1.0f - 0.18f * (cx * cx + cy * cy));
+
             const auto ink = inkAt (scene, p.x, p.y);
-            s.albedo = mix (kPanelColour * drift, kInkColour, ink);
+            s.albedo = mix (kPanelColour * (drift * rim), kInkColour, ink);
             s.f0 = grey (0.035f);
-            s.rough = 0.62f - 0.1f * ink;
+            s.rough = 0.6f - 0.1f * ink;
             break;
         }
 
         case Material::face:
         {
-            // The card behind the window, printed black, lit from behind
-            // through the paper: warm, brightest in the middle.
+            // The meter's dark card, the scale printed white on it; the glass
+            // over it brightens its top a little.
             const auto ink = inkAt (scene, p.x, p.y);
-            const auto dx = (p.x - 0.5f * (kMeterLeft + kMeterRight)) / (kMeterRight - kMeterLeft);
-            const auto dy = (p.y - 0.5f * (kMeterTop + kMeterBottom)) / (kMeterBottom - kMeterTop);
-            const auto glow = 1.0f - 0.9f * (dx * dx + dy * dy);
-            s.albedo = mix (kFaceColour * (1.0f + 0.04f * (fbm (p * 0.08f) - 0.5f)), kFaceInk, ink);
-            s.f0 = grey (0.03f);
-            s.rough = 0.85f;
-            s.emission = V { 0.56f, 0.38f, 0.15f } * (glow * (1.0f - 0.97f * ink));
+            const auto sheen = 1.0f - smooth (kMeterTop, kMeterTop + 32.0f, p.y);
+            s.albedo = mix (grey (0.005f + 0.014f * sheen), kInkColour, ink);
+            s.f0 = grey (0.04f);
+            s.rough = 0.5f;
             break;
         }
 
-        case Material::plastic:
-            s.albedo = grey (0.028f);
+        case Material::rim:
+            s.albedo = grey (0.06f);
             s.f0 = grey (0.04f);
-            s.rough = 0.36f + 0.05f * noise (p * 0.6f);
+            s.rough = 0.3f;
             break;
 
-        case Material::cap:
-            s.albedo = grey (0.04f);
+        case Material::knob:
+            // Light grey on top, darker down its side towards the front.
+            s.albedo = grey (0.05f + 0.12f * smooth (0.06f * kKnobRadius, 0.36f * kKnobRadius, p.z - (hit.part != nullptr ? hit.part->at.z : 0.0f)));
             s.f0 = grey (0.04f);
-            s.rough = 0.28f;
+            s.rough = 0.42f + 0.04f * noise (p * 0.8f);
             break;
 
-        case Material::paint:
-            s.albedo = { 0.82f, 0.81f, 0.78f };
+        case Material::pointer:
+            s.albedo = grey (0.008f);
             s.f0 = grey (0.04f);
             s.rough = 0.4f;
             break;
 
-        case Material::aluminium:
-        {
-            // Brushed round its centre: the grain shows as a faint ring pattern.
-            const auto r = std::sqrt (p.x * p.x + p.y * p.y);
-            s.metal = true;
-            s.f0 = V { 0.78f, 0.78f, 0.8f } * (0.92f + 0.08f * noise ({ r * 6.0f, 0.0f, 0.0f }));
-            s.rough = 0.3f;
-            break;
-        }
-
         case Material::bezel:
-            s.albedo = grey (0.012f);
+            s.albedo = grey (0.011f);
             s.f0 = grey (0.04f);
-            s.rough = 0.3f;
+            s.rough = 0.32f;
             break;
 
         case Material::lens:
+            s.albedo = { 0.21f, 0.21f, 0.205f };
+            s.f0 = grey (0.04f);
+            s.rough = 0.4f;
+            break;
+
         case Material::lensLit:
         {
-            // Frosted cream plastic: when lit, the lamp behind it glows
-            // through, strongest in the middle.
-            const auto lit = hit.material == Material::lensLit;
+            // The lamp behind the frosted cap: white in the middle, warmer
+            // and yellow towards its edges.
             const auto local = hit.part != nullptr ? p - hit.part->at : p;
-            const auto edge = std::fmax (std::fabs (local.x), std::fabs (local.y)) / kButtonHalf;
-            s.albedo = lit ? V { 0.85f, 0.64f, 0.28f } : V { 0.42f, 0.38f, 0.3f };
+            const auto edge = clamp01 (std::fmax (std::fabs (local.x), std::fabs (local.y)) / kCapHalf);
+            s.albedo = { 0.8f, 0.76f, 0.55f };
             s.f0 = grey (0.04f);
-            s.rough = 0.24f;
-            s.emission = lit ? V { 1.6f, 0.98f, 0.28f } * (1.15f - 0.45f * edge * edge) : V { 0.006f, 0.005f, 0.003f };
+            s.rough = 0.35f;
+            s.emission = mix (V { 1.7f, 1.66f, 1.4f }, V { 1.6f, 1.1f, 0.18f }, smooth (0.35f, 0.95f, edge));
             break;
         }
 
-        case Material::nickel:
+        case Material::steel:
             s.metal = true;
-            s.f0 = { 0.6f, 0.58f, 0.55f };
-            s.rough = 0.26f + 0.08f * noise (p * 1.5f);
+            s.f0 = { 0.5f, 0.5f, 0.52f };
+            s.rough = 0.35f;
+            break;
+
+        case Material::blackSteel:
+            s.metal = true;
+            s.f0 = { 0.16f, 0.16f, 0.17f };
+            s.rough = 0.3f;
             break;
 
         case Material::hollow:
@@ -797,8 +828,8 @@ uint64_t seedOf (int x, int y, int sample, int salt)
 }
 
 //==============================================================================
-/** The lettering of the front and of the meter's card, as a mask the paint
-    is printed with: light on the front, black on the card. */
+/** The lettering of the front and of the meter's card, as a mask the white
+    paint is printed with. */
 std::vector<float> printLettering()
 {
     using namespace juce;
@@ -810,18 +841,16 @@ std::vector<float> printLettering()
         g.addTransform (AffineTransform::scale ((float) kPhotoScale));
         g.setColour (Colours::white);
 
-        const auto face = Typeface::createSystemTypefaceFor (PhotoData::HankenGrotesk600_ttf, PhotoData::HankenGrotesk600_ttfSize);
+        // As on the console: a narrow bold grotesque for the front, a bold
+        // serif for the maker's name.
+        const Font sans (FontOptions ("Arial", 12.0f, Font::bold));
+        const Font serif (FontOptions ("Palatino Linotype", 12.0f, Font::bold));
 
-        auto text = [&] (const String& s, float x, float y, float height, float tracking = 0.04f,
-                         Justification justification = Justification::centred)
+        auto text = [&] (const String& s, float x, float y, float height, const Font& font = Font (FontOptions ("Arial", 12.0f, Font::bold)),
+                         float narrow = 0.86f, float tracking = 0.0f)
         {
-            g.setFont (Font (FontOptions (face).withHeight (height)).withExtraKerningFactor (tracking));
-            auto box = Rectangle<float> (240.0f, height * 1.6f).withCentre ({ x, y });
-
-            if (justification == Justification::centredLeft)
-                box.setX (x);
-
-            g.drawText (s, box, justification, false);
+            g.setFont (font.withHeight (height).withHorizontalScale (narrow).withExtraKerningFactor (tracking));
+            g.drawText (s, Rectangle<float> (300.0f, height * 1.6f).withCentre ({ x, y }), Justification::centred, false);
         };
 
         auto around = [] (float cx, float cy, float degrees, float radius)
@@ -830,50 +859,91 @@ std::vector<float> printLettering()
             return Point<float> (cx + radius * std::sin (a), cy - radius * std::cos (a));
         };
 
-        // The maker, and what it is.
-        text ("ONIRIQUE", 52.0f, 58.0f, 18.0f, 0.16f, Justification::centredLeft);
-        text ("BUS COMPRESSOR", 210.0f, 287.0f, 10.0f, 0.22f);
+        // The maker.
+        text ("ONIRIQUE", 210.0f, 29.0f, 28.0f, serif, 1.0f, 0.04f);
 
-        // The meter: its window's outline on the front, its scale on the card.
-        g.drawRoundedRectangle (Rectangle<float> (kMeterLeft, kMeterTop, kMeterRight - kMeterLeft, kMeterBottom - kMeterTop).expanded (5.0f), 9.0f, 1.2f);
-
-        Path arc;
-        arc.addCentredArc (kPivotX, kPivotY, kScaleRadius, kScaleRadius, 0.0f,
-                           meterDegrees (0.0f) * kPi / 180.0f, meterDegrees (kMeterMaxDb) * kPi / 180.0f, true);
-        g.strokePath (arc, PathStrokeType (1.3f));
-
-        for (int db = 0; db <= (int) kMeterMaxDb; ++db)
+        // The rules: the frame round the compressor, open at the top, named at
+        // its foot; the rule over the fade; the bracket round it.
+        const auto stroke = PathStrokeType (1.6f);
+        auto ruleGap = [&] (const String& s, float height)
         {
-            const auto major = db % 4 == 0;
-            const auto degrees = meterDegrees ((float) db);
-            g.drawLine (Line<float> (around (kPivotX, kPivotY, degrees, kScaleRadius), around (kPivotX, kPivotY, degrees, kScaleRadius + (major ? 10.0f : 5.5f))),
-                        major ? 1.5f : 1.0f);
-
-            if (major)
-            {
-                const auto at = around (kPivotX, kPivotY, degrees, kScaleRadius + 21.0f);
-                text (String (db), at.x, at.y, 13.0f, 0.0f);
-            }
-        }
-
-        text ("dB", kPivotX, 192.0f, 12.0f, 0.04f);
-        text ("COMPRESSION", kPivotX, 212.0f, 10.5f, 0.18f);
-        text ("ONIRIQUE", kPivotX, 244.0f, 7.5f, 0.3f);
-
-        // The knobs: their marks and values round them, their names below.
-        auto marks = [&] (const Control& c, std::initializer_list<std::pair<float, const char*>> values, float radius = 42.0f, float height = 10.0f)
-        {
-            for (const auto& [proportion, label] : values)
-            {
-                const auto degrees = c.fromDegrees + proportion * (c.toDegrees - c.fromDegrees);
-                const auto dot = around (c.x, c.y, degrees, radius - 11.0f);
-                g.fillEllipse (Rectangle<float> (2.2f, 2.2f).withCentre (dot));
-
-                const auto at = around (c.x, c.y, degrees, radius);
-                text (label, at.x, at.y, height, 0.0f);
-            }
+            return 0.5f * GlyphArrangement::getStringWidth (sans.withHeight (height).withHorizontalScale (0.86f), s) + 5.0f;
         };
 
+        {
+            const auto gap = ruleGap ("STEREO COMPRESSOR", 17.0f);
+            Path frame;
+            frame.startNewSubPath (210.0f - gap, kCompressorRuleY);
+            frame.lineTo (kRuleLeft + kRuleCorner, kCompressorRuleY);
+            frame.quadraticTo (kRuleLeft, kCompressorRuleY, kRuleLeft, kCompressorRuleY - kRuleCorner);
+            frame.lineTo (kRuleLeft, kFrameTop);
+            frame.startNewSubPath (210.0f + gap, kCompressorRuleY);
+            frame.lineTo (kRuleRight - kRuleCorner, kCompressorRuleY);
+            frame.quadraticTo (kRuleRight, kCompressorRuleY, kRuleRight, kCompressorRuleY - kRuleCorner);
+            frame.lineTo (kRuleRight, kFrameTop);
+            g.strokePath (frame, stroke);
+            text ("STEREO COMPRESSOR", 210.0f, kCompressorRuleY, 17.0f);
+        }
+
+        {
+            const auto gap = ruleGap ("ONIRIQUE GLUE", 16.0f);
+            g.fillRect (Rectangle<float> (kRuleLeft + 2.0f, kGlueRuleY - 0.8f, 210.0f - gap - kRuleLeft - 2.0f, 1.6f));
+            g.fillRect (Rectangle<float> (210.0f + gap, kGlueRuleY - 0.8f, kRuleRight - 2.0f - 210.0f - gap, 1.6f));
+            text ("ONIRIQUE GLUE", 210.0f, kGlueRuleY, 16.0f);
+        }
+
+        {
+            // The bracket, the house's mark in a diamond at its foot.
+            constexpr float dx = 25.0f, dy = 17.0f;
+            Path bracket;
+            bracket.startNewSubPath (210.0f - dx - 3.0f, kBracketY);
+            bracket.lineTo (kRuleLeft + kRuleCorner, kBracketY);
+            bracket.quadraticTo (kRuleLeft, kBracketY, kRuleLeft, kBracketY - kRuleCorner);
+            bracket.lineTo (kRuleLeft, kBracketTop);
+            bracket.startNewSubPath (210.0f + dx + 3.0f, kBracketY);
+            bracket.lineTo (kRuleRight - kRuleCorner, kBracketY);
+            bracket.quadraticTo (kRuleRight, kBracketY, kRuleRight, kBracketY - kRuleCorner);
+            bracket.lineTo (kRuleRight, kBracketTop);
+
+            Path diamond;
+            diamond.addTriangle (210.0f - dx, kBracketY, 210.0f, kBracketY - dy, 210.0f + dx, kBracketY);
+            diamond.addTriangle (210.0f - dx, kBracketY, 210.0f, kBracketY + dy, 210.0f + dx, kBracketY);
+            Path outline;
+            outline.startNewSubPath (210.0f - dx, kBracketY);
+            outline.lineTo (210.0f, kBracketY - dy);
+            outline.lineTo (210.0f + dx, kBracketY);
+            outline.lineTo (210.0f, kBracketY + dy);
+            outline.closeSubPath();
+            g.strokePath (bracket, stroke);
+            g.strokePath (outline, PathStrokeType (1.4f));
+
+            const auto sigil = ImageCache::getFromMemory (PhotoData::sigil_png, PhotoData::sigil_pngSize);
+            const auto sw = 24.0f, sh = sw * (float) sigil.getHeight() / (float) sigil.getWidth();
+            g.setImageResamplingQuality (Graphics::highResamplingQuality);
+            g.drawImage (sigil, Rectangle<float> (sw, sh).withCentre ({ 210.0f, kBracketY }));
+        }
+
+        // The rate knob's rule over to the fade button.
+        g.fillRect (Rectangle<float> (186.0f, 771.2f, 64.0f, 1.6f));
+
+        // The meter's card: its scale on an arc round the pivot, white.
+        for (int db = 0; db <= (int) kMeterMaxDb; db += 4)
+        {
+            const auto degrees = meterDegrees ((float) db);
+            g.drawLine (Line<float> (around (kPivotX, kPivotY, degrees, kTickInner), around (kPivotX, kPivotY, degrees, kTickOuter)), 1.7f);
+
+            // The figures lean with the scale.
+            const auto at = around (kPivotX, kPivotY, degrees, kNumberRadius);
+            const Graphics::ScopedSaveState state (g);
+            g.addTransform (AffineTransform::rotation (degrees * kPi / 180.0f, at.x, at.y));
+            text (String (db), at.x, at.y, 16.5f, Font (FontOptions ("Arial", 12.0f, Font::plain)), 0.9f);
+        }
+
+        text ("dB", kPivotX - 1.0f, 135.0f, 13.5f, Font (FontOptions ("Arial", 12.0f, Font::plain)), 0.9f);
+        text ("COMPRESSION", kPivotX, 151.0f, 14.0f, Font (FontOptions ("Arial", 12.0f, Font::plain)), 0.9f);
+
+        // The knobs: a dot for each step round them, figures at the marked
+        // ones, their names below.
         auto control = [] (const char* id) -> const Control&
         {
             for (const auto& c : kControls)
@@ -883,56 +953,82 @@ std::vector<float> printLettering()
             return kControls[0];
         };
 
-        auto name = [&] (const char* id, const String& s, float below = 51.0f)
+        auto dot = [&] (Point<float> at) { g.fillEllipse (Rectangle<float> (3.4f, 3.4f).withCentre (at)); };
+
+        // Eleven steps, figures in place of the dots at the ends and the middle.
+        auto elevenSteps = [&] (const char* id, const char* low, const char* middle, const char* high)
         {
             const auto& c = control (id);
-            text (s, c.x, c.y + below, 10.5f, 0.12f);
+
+            for (int i = 0; i <= 10; ++i)
+            {
+                const auto degrees = c.fromDegrees + (float) i * 0.1f * (c.toDegrees - c.fromDegrees);
+
+                if (i == 0 || i == 5 || i == 10)
+                {
+                    const auto at = around (c.x, c.y, degrees, i == 5 ? 35.0f : 37.0f);
+                    text (i == 0 ? low : i == 5 ? middle : high, at.x + (i == 0 ? -3.0f : i == 10 ? 3.0f : 0.0f), at.y + (i == 5 ? 0.0f : 3.0f), 12.5f);
+                }
+                else
+                {
+                    dot (around (c.x, c.y, degrees, 33.0f));
+                }
+            }
         };
 
-        marks (control ("threshold"), { { 0.0f, "-15" }, { 1.0f / 6, "-10" }, { 2.0f / 6, "-5" }, { 0.5f, "0" },
-                                         { 4.0f / 6, "+5" }, { 5.0f / 6, "+10" }, { 1.0f, "+15" } });
-        marks (control ("makeup"), { { 0.0f, "-5" }, { 0.25f, "0" }, { 0.5f, "+5" }, { 0.75f, "+10" }, { 1.0f, "+15" } });
-        marks (control ("attack"), { { 0.0f, glue::kAttackNames[0] }, { 0.2f, glue::kAttackNames[1] }, { 0.4f, glue::kAttackNames[2] },
-                                      { 0.6f, glue::kAttackNames[3] }, { 0.8f, glue::kAttackNames[4] }, { 1.0f, glue::kAttackNames[5] } });
-        marks (control ("release"), { { 0.0f, glue::kReleaseNames[0] }, { 0.25f, glue::kReleaseNames[1] }, { 0.5f, glue::kReleaseNames[2] },
-                                       { 0.75f, glue::kReleaseNames[3] }, { 1.0f, glue::kReleaseNames[4] } });
-        marks (control ("ratio"), { { 0.0f, glue::kRatioNames[0] }, { 0.5f, glue::kRatioNames[1] }, { 1.0f, glue::kRatioNames[2] } });
-
-        auto sc = [] (float hz) { return skewedProportion (hz, 0.0f, kScFilterMax, kScFilterCentre); };
-        marks (control ("scfilter"), { { 0.0f, "OFF" }, { sc (30.0f), "30" }, { 0.5f, "80" }, { sc (200.0f), "200" }, { 1.0f, "500" } });
-        marks (control ("headroom"), { { 0.0f, "4" }, { 1.0f, "24" } }, 21.0f, 8.5f);
-        marks (control ("mix"), { { 0.0f, "0" }, { 0.25f, "25" }, { 0.5f, "50" }, { 0.75f, "75" }, { 1.0f, "100" } });
-
-        auto rate = [] (float s) { return skewedProportion (s, kRateMin, kRateMax, kRateCentre); };
-        marks (control ("rate"), { { 0.0f, "1" }, { rate (3.0f), "3" }, { 0.5f, "10" }, { rate (30.0f), "30" }, { 1.0f, "60" } });
-
-        name ("threshold", "THRESHOLD");
-        name ("makeup", "MAKE-UP");
-        name ("attack", "ATTACK - mS");
-        name ("release", "RELEASE - S");
-        name ("ratio", "RATIO");
-        name ("scfilter", "SC FILTER - Hz");
-        name ("headroom", "HR - dB", 30.0f);
-        name ("mix", "MIX - %");
-        name ("rate", "RATE - S");
-
-        // The two sections, each named on a rule across the front.
-        auto rule = [&] (const String& s, float y, float height, float tracking)
+        // Figures at each step, a dot beside each.
+        auto marked = [&] (const char* id, std::initializer_list<std::pair<float, const char*>> marks)
         {
-            g.setFont (Font (FontOptions (face).withHeight (height)).withExtraKerningFactor (tracking));
-            const auto half = 0.5f * GlyphArrangement::getStringWidth (g.getCurrentFont(), s) + 12.0f;
-            g.fillRect (Rectangle<float> (26.0f, y - 0.6f, 210.0f - half - 26.0f, 1.2f));
-            g.fillRect (Rectangle<float> (210.0f + half, y - 0.6f, 394.0f - 210.0f - half, 1.2f));
-            text (s, 210.0f, y, height, tracking);
+            const auto& c = control (id);
+
+            for (const auto& [degrees, label] : marks)
+            {
+                dot (around (c.x, c.y, degrees, 32.0f));
+                const auto at = around (c.x, c.y, degrees, String (label).length() > 2 ? 46.0f : 42.0f);
+                text (label, at.x, at.y, 12.5f);
+            }
         };
 
-        rule ("STEREO COMPRESSOR", 684.0f, 11.5f, 0.2f);
-        rule ("GLUE", 852.0f, 15.0f, 0.4f);
+        elevenSteps ("threshold", "-15", "0", "+15");
+        elevenSteps ("makeup", "0", "7.5", "+15");
+        elevenSteps ("scfilter", "OFF", "80", "500");
+        elevenSteps ("mix", "0", "50", "100");
 
-        const auto sigil = ImageCache::getFromMemory (PhotoData::sigil_png, PhotoData::sigil_pngSize);
-        const auto sw = 30.0f, sh = sw * (float) sigil.getHeight() / (float) sigil.getWidth();
-        g.setImageResamplingQuality (Graphics::highResamplingQuality);
-        g.drawImage (sigil, Rectangle<float> (sw, sh).withCentre ({ 210.0f, 1008.0f }));
+        marked ("attack", { { -80.0f, ".1" }, { -48.0f, ".3" }, { -16.0f, "1" }, { 16.0f, "3" }, { 48.0f, "10" }, { 80.0f, "30" } });
+        marked ("release", { { -63.0f, ".1" }, { -31.5f, ".3" }, { 0.0f, ".6" }, { 31.5f, "1.2" }, { 63.0f, "Auto" } });
+        marked ("ratio", { { -30.0f, "2" }, { 0.0f, "4" }, { 30.0f, "10" } });
+
+        {
+            const auto& c = control ("rate");
+
+            for (int i = 0; i < kNumRateMarks; ++i)
+            {
+                const auto degrees = kRateMarkDegrees[i];
+                const auto end = i == 0 || i == kNumRateMarks - 1;
+                dot (around (c.x, c.y, degrees, 32.0f));
+                const auto at = around (c.x, c.y, degrees, end ? 38.0f : 43.0f);
+                text (String (kRateMarks[i], 0), at.x + (i == 0 ? -4.0f : end ? 4.0f : 0.0f), at.y + (end ? 4.0f : 0.0f), 12.5f);
+            }
+        }
+
+        auto name = [&] (const char* id, const String& s, float below)
+        {
+            const auto& c = control (id);
+            text (s, c.x, c.y + below, 15.5f);
+        };
+
+        name ("threshold", "THRESHOLD", 43.0f);
+        name ("makeup", "MAKE-UP", 43.0f);
+        name ("attack", "ATTACK -mS", 43.0f);
+        name ("release", "RELEASE -S", 43.0f);
+        name ("ratio", "RATIO", 44.0f);
+        name ("scfilter", "SC FILTER -Hz", 45.0f);
+        name ("headroom", "HR -dB", 29.0f);
+        name ("mix", "MIX -%", 45.0f);
+        name ("rate", "RATE -S", 44.0f);
+
+        // The ratio's centre mark, under its knob.
+        g.fillRect (Rectangle<float> (127.2f, 530.0f, 1.6f, 6.0f));
     }
 
     std::vector<float> coverage ((size_t) (w * h));
@@ -945,21 +1041,17 @@ std::vector<float> printLettering()
     return coverage;
 }
 
-/** The whole front, with its screws and its lit meter. */
+/** The whole front, with its meter. */
 juce::Image photographFront (int samples, const std::vector<float>& ink)
 {
-    std::vector<std::unique_ptr<Part>> owned;
     Scene scene;
-    scene.meter = true;
     scene.ink = &ink;
     scene.inkWidth = kWidth * kPhotoScale;
     scene.inkHeight = kHeight * kPhotoScale;
 
-    for (const auto& screw : kScrews)
-        owned.push_back (std::make_unique<ScrewPart> (screw));
-
-    for (const auto& p : owned)
-        scene.parts.push_back (p.get());
+    const MeterCase meterCase;
+    const ZeroScrew zeroScrew;
+    scene.parts = { &meterCase, &zeroScrew };
 
     const int w = scene.inkWidth, h = scene.inkHeight;
     juce::Image image (juce::Image::RGB, w, h, false, juce::SoftwareImageType());
@@ -995,7 +1087,7 @@ std::unique_ptr<Part> makePart (Kind kind, int frame)
     switch (kind)
     {
         case Kind::knob:   return std::make_unique<Knob> (kKnobRadius, angle);
-        case Kind::trim:   return std::make_unique<Knob> (kTrimRadius, angle);
+        case Kind::trim:   return std::make_unique<Trim> (angle);
         case Kind::button: return std::make_unique<Button> (frame == 1);
     }
 

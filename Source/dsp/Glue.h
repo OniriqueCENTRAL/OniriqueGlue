@@ -29,7 +29,7 @@ constexpr double kScFilterOff = 20.0;
 struct Settings
 {
     float threshold = 0.0f;     // -15 to +15 dB
-    float makeup = 0.0f;        // -5 to +15 dB
+    float makeup = 0.0f;        // 0 to +15 dB
     int attack = 5;             // 30 ms
     int release = 4;            // auto
     int ratio = 1;              // 4:1

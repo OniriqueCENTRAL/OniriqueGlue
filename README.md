@@ -33,7 +33,7 @@ fréquence doublée : la latence est annoncée à l'hôte.
 | Réglage | Ce qu'il fait |
 |---|---|
 | Threshold | -15 à +15 dB ; 0 correspond à -14 dBFS |
-| Make-Up | -5 à +15 dB |
+| Make-Up | 0 à +15 dB |
 | Attack | 0,1 à 30 ms, six crans |
 | Release | 0,1 à 1,2 s, ou AUTO |
 | Ratio | 2, 4 ou 10 pour 1 |

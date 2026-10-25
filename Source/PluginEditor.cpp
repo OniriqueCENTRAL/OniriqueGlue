@@ -124,7 +124,7 @@ void GlueEditor::resized()
 
     // The licence badge sits at the top on the right, beside the maker's name.
     if (licenseOverlay != nullptr)
-        licenseOverlay->fit (getLocalBounds(), scale, { 170, 44, 190, 28 }, Justification::centredRight);
+        licenseOverlay->fit (getLocalBounds(), scale, { 284, 12, 130, 32 }, Justification::centredRight);
 }
 
 void GlueEditor::timerCallback()
@@ -222,9 +222,9 @@ void GlueEditor::paintFront (Graphics& g)
         {
             const auto lit = k == 1;
             const auto name = String (c.name);
-            g.setColour (Colour (lit ? 0xd0402a10 : 0xb02a2622));
-            g.setFont (displayFont (name.length() > 3 ? 10.5f : 15.0f));
-            g.drawFittedText (name.replace (" ", "\n"), Rectangle<float> (2.0f * layout::kButtonHalf - 10.0f, 2.0f * layout::kButtonHalf - 10.0f)
+            g.setColour (Colour (lit ? 0xd04a3e22 : 0xd0262626));
+            g.setFont (displayFont (name.length() > 3 ? 11.0f : 12.5f));
+            g.drawFittedText (name.replace (" ", "\n"), Rectangle<float> (2.0f * layout::kCapHalf - 8.0f, 2.0f * layout::kCapHalf - 8.0f)
                                                            .withCentre ({ c.x, c.y + (lit ? 1.0f : 0.0f) }).toNearestInt(),
                               Justification::centred, 2, 1.0f);
         }
@@ -242,14 +242,14 @@ void GlueEditor::paintNeedle (Graphics& g)
     const auto tip = pivot.getPointOnCircumference (kNeedleLength, angle);
     const auto tail = pivot.getPointOnCircumference (kNeedleLength * 0.35f, angle);
 
-    // Its shadow on the lit face, then the needle: thin, black, a touch thicker at the root.
+    // Its shadow on the dark card, then the needle: thin, white, a touch thicker at the root.
     Path needle;
-    needle.addLineSegment ({ tail, tip }, 1.0f);
-    needle.addLineSegment ({ tail, tail.getPointOnCircumference (kNeedleLength * 0.3f, angle) }, 1.4f);
+    needle.addLineSegment ({ tail, tip }, 1.6f);
+    needle.addLineSegment ({ tail, tail.getPointOnCircumference (kNeedleLength * 0.3f, angle) }, 2.2f);
 
-    g.setColour (Colours::black.withAlpha (0.16f));
+    g.setColour (Colours::black.withAlpha (0.5f));
     g.fillPath (needle, AffineTransform::translation (2.5f, 3.5f));
-    g.setColour (Colour (0xff17130f));
+    g.setColour (Colour (0xffe6e4dc));
     g.fillPath (needle);
 }
 

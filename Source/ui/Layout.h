@@ -8,7 +8,7 @@ namespace onirique::layout
 {
 
 // The front, in points; its photographs have this many pixels to the point.
-constexpr int kWidth = 420, kHeight = 1040;
+constexpr int kWidth = 420, kHeight = 866;
 constexpr int kPhotoScale = 2;
 
 enum class Kind { knob, trim, button };
@@ -42,21 +42,23 @@ struct Control
     float fromDegrees, toDegrees;   // the pointer at the parameter's lowest and highest, clockwise from twelve o'clock
 };
 
+// As on the console's front: the sweeps of the knobs are those engraved round them.
 inline constexpr Control kControls[] = {
-    { "threshold", "THRESHOLD", Kind::knob,   110.0f, 355.0f, 76.0f, -135.0f, 135.0f },
-    { "makeup",    "MAKE-UP",   Kind::knob,   310.0f, 355.0f, 76.0f, -135.0f, 135.0f },
-    { "attack",    "ATTACK",    Kind::knob,   110.0f, 480.0f, 76.0f, -135.0f, 135.0f },
-    { "release",   "RELEASE",   Kind::knob,   310.0f, 480.0f, 76.0f, -120.0f, 120.0f },
-    { "ratio",     "RATIO",     Kind::knob,   110.0f, 605.0f, 76.0f, -60.0f,  60.0f },
-    { "in",        "IN",        Kind::button, 310.0f, 605.0f, 70.0f, 0.0f,    0.0f },
-    { "scfilter",  "SC FILTER", Kind::knob,   90.0f,  765.0f, 76.0f, -135.0f, 135.0f },
-    { "headroom",  "HEADROOM",  Kind::trim,   210.0f, 765.0f, 40.0f, -135.0f, 135.0f },
-    { "mix",       "MIX",       Kind::knob,   330.0f, 765.0f, 76.0f, -135.0f, 135.0f },
-    { "rate",      "FADE RATE", Kind::knob,   110.0f, 930.0f, 76.0f, -135.0f, 135.0f },
-    { "fade",      "AUTO FADE", Kind::button, 310.0f, 930.0f, 70.0f, 0.0f,    0.0f },
+    { "threshold", "THRESHOLD", Kind::knob,   128.0f, 285.0f, 64.0f, -143.0f, 143.0f },
+    { "makeup",    "MAKE-UP",   Kind::knob,   293.0f, 285.0f, 64.0f, -143.0f, 143.0f },
+    { "attack",    "ATTACK",    Kind::knob,   125.0f, 395.0f, 64.0f, -80.0f,  80.0f },
+    { "release",   "RELEASE",   Kind::knob,   295.0f, 395.0f, 64.0f, -63.0f,  63.0f },
+    { "ratio",     "RATIO",     Kind::knob,   128.0f, 505.0f, 64.0f, -30.0f,  30.0f },
+    { "in",        "IN",        Kind::button, 295.0f, 508.0f, 90.0f, 0.0f,    0.0f },
+    { "scfilter",  "SC FILTER", Kind::knob,   125.0f, 635.0f, 64.0f, -141.0f, 141.0f },
+    { "headroom",  "HEADROOM",  Kind::trim,   210.0f, 636.0f, 30.0f, -135.0f, 135.0f },
+    { "mix",       "MIX",       Kind::knob,   294.0f, 635.0f, 64.0f, -141.0f, 141.0f },
+    { "rate",      "FADE RATE", Kind::knob,   128.0f, 770.0f, 64.0f, -147.0f, 147.0f },
+    { "fade",      "AUTO FADE", Kind::button, 295.0f, 772.0f, 90.0f, 0.0f,    0.0f },
 };
 
-constexpr float kKnobRadius = 24.0f, kTrimRadius = 11.0f, kButtonHalf = 30.0f;
+constexpr float kKnobRadius = 24.0f, kTrimRadius = 7.5f;
+constexpr float kCapHalf = 31.0f, kBezelHalf = 45.0f;
 
 /** Where a part's photograph lies around its centre: the part, and room for
     the shadow it casts down and to the right, away from the light. */
@@ -71,19 +73,23 @@ constexpr Frame frameOf (Kind kind)
 {
     switch (kind)
     {
-        case Kind::knob:   return { 29.0f, 56.0f };
-        case Kind::trim:   return { 14.0f, 27.0f };
-        case Kind::button: return { 37.0f, 52.0f };
+        case Kind::knob:   return { 28.0f, 52.0f };
+        case Kind::trim:   return { 10.0f, 14.0f };
+        case Kind::button: return { 49.0f, 66.0f };
     }
 
     return { 0.0f, 0.0f };
 }
 
-// The meter: a lit window, its needle turning on a pivot hidden under the
-// front, 0 to 20 dB of compression from left to right.
-constexpr float kMeterLeft = 60.0f, kMeterTop = 92.0f, kMeterRight = 360.0f, kMeterBottom = 262.0f;
-constexpr float kPivotX = 210.0f, kPivotY = 300.0f, kNeedleLength = 172.0f, kScaleRadius = 160.0f;
-constexpr float kMeterMaxDb = 20.0f, kMeterHalfDegrees = 42.0f;
+// The meter: a black case standing on the front, its window cut in it, the
+// needle turning on a pivot behind the zero screw, 0 to 20 dB of compression
+// from left to right.
+constexpr float kCaseLeft = 104.0f, kCaseTop = 54.0f, kCaseRight = 320.0f, kCaseBottom = 232.0f, kCaseHeight = 7.0f;
+constexpr float kMeterLeft = 120.0f, kMeterTop = 69.0f, kMeterRight = 302.0f, kMeterBottom = 168.0f;
+constexpr float kZeroScrewX = 210.0f, kZeroScrewY = 202.0f, kZeroScrewRadius = 9.0f;
+constexpr float kPivotX = 211.0f, kPivotY = 194.0f, kNeedleLength = 98.0f;
+constexpr float kTickInner = 82.0f, kTickOuter = 89.0f, kNumberRadius = 105.0f;
+constexpr float kMeterMaxDb = 20.0f, kMeterHalfDegrees = 44.0f;
 
 inline float meterDegrees (float db)
 {
@@ -99,14 +105,48 @@ inline float skewedProportion (float value, float start, float end, float centre
     return std::pow ((value - start) / (end - start), skew);
 }
 
-// The ranges with a skew, shared with the parameters.
 constexpr float kScFilterMax = 500.0f, kScFilterCentre = 80.0f;
-constexpr float kRateMin = 1.0f, kRateMax = 60.0f, kRateCentre = 10.0f;
 
-// What is part of the front itself, photographed with it.
-struct Screw { float x, y, slot; };
-inline constexpr Screw kScrews[] = { { 30.0f, 30.0f, 0.5f }, { 390.0f, 30.0f, -0.3f },
-                                     { 30.0f, 1010.0f, 0.9f }, { 390.0f, 1010.0f, 0.2f } };
-constexpr float kScrewRadius = 9.0f;
+// The fade's rate is engraved unevenly, 10 at the top: its knob follows the
+// engraving, evenly in between from one mark to the next.
+constexpr int kNumRateMarks = 7;
+constexpr float kRateMarks[kNumRateMarks] = { 1.0f, 3.0f, 5.0f, 10.0f, 20.0f, 40.0f, 60.0f };
+constexpr float kRateMarkDegrees[kNumRateMarks] = { -147.0f, -90.0f, -47.0f, 0.0f, 48.0f, 90.0f, 147.0f };
+
+inline float rateProportion (float seconds)
+{
+    for (int i = 1; i < kNumRateMarks; ++i)
+    {
+        if (seconds <= kRateMarks[i] || i == kNumRateMarks - 1)
+        {
+            const auto t = std::log (std::fmax (seconds, kRateMarks[0]) / kRateMarks[i - 1]) / std::log (kRateMarks[i] / kRateMarks[i - 1]);
+            const auto degrees = kRateMarkDegrees[i - 1] + std::fmin (1.0f, t) * (kRateMarkDegrees[i] - kRateMarkDegrees[i - 1]);
+            return (degrees - kRateMarkDegrees[0]) / (kRateMarkDegrees[kNumRateMarks - 1] - kRateMarkDegrees[0]);
+        }
+    }
+
+    return 1.0f;
+}
+
+inline float rateFromProportion (float proportion)
+{
+    const auto degrees = kRateMarkDegrees[0] + proportion * (kRateMarkDegrees[kNumRateMarks - 1] - kRateMarkDegrees[0]);
+
+    for (int i = 1; i < kNumRateMarks; ++i)
+    {
+        if (degrees <= kRateMarkDegrees[i] || i == kNumRateMarks - 1)
+        {
+            const auto t = std::fmax (0.0f, (degrees - kRateMarkDegrees[i - 1]) / (kRateMarkDegrees[i] - kRateMarkDegrees[i - 1]));
+            return kRateMarks[i - 1] * std::pow (kRateMarks[i] / kRateMarks[i - 1], std::fmin (1.0f, t));
+        }
+    }
+
+    return kRateMarks[kNumRateMarks - 1];
+}
+
+// The white rules of the front: the frame round the compressor, open at the
+// top, the rule of the side-chain section, the bracket round the fade.
+constexpr float kRuleLeft = 52.0f, kRuleRight = 368.0f, kFrameTop = 28.0f, kCompressorRuleY = 576.0f;
+constexpr float kGlueRuleY = 711.0f, kBracketTop = 782.0f, kBracketY = 834.0f, kRuleCorner = 7.0f;
 
 } // namespace onirique::layout
