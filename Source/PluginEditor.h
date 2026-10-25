@@ -49,6 +49,7 @@ private:
     void paintFront (Graphics&);
     void paintNeedle (Graphics&);
     void paintReadout (Graphics&);
+    bool isBacklit() const;
 
     GlueProcessor& processor;
     theme::GlueLookAndFeel lookAndFeel;
@@ -62,7 +63,8 @@ private:
     std::vector<std::unique_ptr<AudioProcessorValueTreeState::SliderAttachment>> sliderAttachments;
     std::vector<std::unique_ptr<AudioProcessorValueTreeState::ButtonAttachment>> buttonAttachments;
 
-    Image frontPhoto;
+    /** The front, the meter's lamp off and lit. */
+    Image frontOff, frontOn;
 
     /** What the parts were last drawn at: a change is drawn again. */
     std::vector<float> shownValues;

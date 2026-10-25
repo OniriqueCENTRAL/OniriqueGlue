@@ -17,9 +17,15 @@ crémeux quand on le pousse.
 - **MIX** pour la compression parallèle, et l'**AUTO FADE** de la console, sur
   1 à 60 secondes.
 
-La façade est une photographie : la façade, le VU et chaque pièce sont modélisés
-en 3D et rendus par lancer de rayons (`tools/photo.cpp`). Le plugin ne fait
-qu'afficher ces images (`Resources/photo`) et dessine l'aiguille du VU par-dessus.
+La façade reprend celle de l'original point par point, peinte du rouge de la
+gamme : VU noir à graduations blanches, potards à deux étages (jupe sombre,
+chapeau gris clair), boutons à gros cadre noir qui s'allument en bleu, et un VU
+rétroéclairé en rouge par une petite lampe cachée sous le bas de sa fenêtre,
+allumée tant que le compresseur est en service (IN enfoncé, plugin non
+bypassé). C'est une photographie : la façade et chaque pièce
+sont modélisées en 3D et rendues par lancer de rayons (`tools/photo.cpp`). Le
+plugin ne fait qu'afficher ces images (`Resources/photo`) et dessine l'aiguille
+du VU par-dessus.
 
 VST3 (Windows, macOS) et Audio Unit (macOS). Mono ou stéréo. Traitement à
 fréquence doublée : la latence est annoncée à l'hôte.

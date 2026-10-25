@@ -40,7 +40,7 @@ void GlueLookAndFeel::drawTooltip (Graphics& g, const String& text, int width, i
 {
     const auto bounds = Rectangle<float> (0.0f, 0.0f, (float) width, (float) height).reduced (0.5f);
 
-    g.setGradientFill (ColourGradient (Colour (0xff2e2d2b), 0.0f, 0.0f, Colour (0xff161514), 0.0f, (float) height, false));
+    g.setGradientFill (ColourGradient (Colour (0xff3d0911), 0.0f, 0.0f, Colour (0xff1c0508), 0.0f, (float) height, false));
     g.fillRoundedRectangle (bounds, 7.0f);
     g.setColour (ember.withAlpha (0.6f));
     g.drawRoundedRectangle (bounds, 7.0f, 1.0f);

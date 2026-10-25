@@ -73,7 +73,7 @@ constexpr Frame frameOf (Kind kind)
 {
     switch (kind)
     {
-        case Kind::knob:   return { 28.0f, 52.0f };
+        case Kind::knob:   return { 28.0f, 60.0f };
         case Kind::trim:   return { 10.0f, 14.0f };
         case Kind::button: return { 49.0f, 66.0f };
     }
@@ -90,6 +90,10 @@ constexpr float kZeroScrewX = 210.0f, kZeroScrewY = 202.0f, kZeroScrewRadius = 9
 constexpr float kPivotX = 211.0f, kPivotY = 194.0f, kNeedleLength = 98.0f;
 constexpr float kTickInner = 82.0f, kTickOuter = 89.0f, kNumberRadius = 105.0f;
 constexpr float kMeterMaxDb = 20.0f, kMeterHalfDegrees = 44.0f;
+
+// The lamp hidden under the window's lower edge, in the middle: it lights the
+// card red from below while the compressor is in.
+constexpr float kBacklightX = kPivotX;
 
 inline float meterDegrees (float db)
 {

@@ -35,7 +35,8 @@ namespace
 GlueEditor::GlueEditor (GlueProcessor& p)
     : AudioProcessorEditor (&p),
       processor (p),
-      frontPhoto (photo ("front.jpg"))
+      frontOff (photo ("front-off.jpg")),
+      frontOn (photo ("front-on.jpg"))
 {
     setLookAndFeel (&lookAndFeel);
 
@@ -169,6 +170,8 @@ void GlueEditor::timerCallback()
     for (const auto& part : parts)
         values.push_back (processor.apvts.getParameter (part.control->id)->getValue());
 
+    values.push_back (processor.apvts.getParameter ("bypass")->getValue());
+
     if (now != shown || text != readout || values != shownValues)
     {
         shown = now;
@@ -182,7 +185,7 @@ void GlueEditor::timerCallback()
 void GlueEditor::paintFront (Graphics& g)
 {
     g.setImageResamplingQuality (Graphics::highResamplingQuality);
-    g.drawImage (frontPhoto, Rectangle<float> ((float) kWidth, (float) kHeight));
+    g.drawImage (isBacklit() ? frontOn : frontOff, Rectangle<float> ((float) kWidth, (float) kHeight));
 
     paintNeedle (g);
 
@@ -222,7 +225,7 @@ void GlueEditor::paintFront (Graphics& g)
         {
             const auto lit = k == 1;
             const auto name = String (c.name);
-            g.setColour (Colour (lit ? 0xd04a3e22 : 0xd0262626));
+            g.setColour (Colour (lit ? 0xd8081830 : 0xd0262626));
             g.setFont (displayFont (name.length() > 3 ? 11.0f : 12.5f));
             g.drawFittedText (name.replace (" ", "\n"), Rectangle<float> (2.0f * layout::kCapHalf - 8.0f, 2.0f * layout::kCapHalf - 8.0f)
                                                            .withCentre ({ c.x, c.y + (lit ? 1.0f : 0.0f) }).toNearestInt(),
@@ -249,8 +252,19 @@ void GlueEditor::paintNeedle (Graphics& g)
 
     g.setColour (Colours::black.withAlpha (0.5f));
     g.fillPath (needle, AffineTransform::translation (2.5f, 3.5f));
-    g.setColour (Colour (0xffe6e4dc));
+
+    // Backlit, its root catches the lamp's red from below.
+    const Colour white (0xffe6e4dc);
+    g.setGradientFill (ColourGradient (isBacklit() ? Colour (0xffff7a66) : white, pivot.getPointOnCircumference (kNeedleLength * 0.45f, angle),
+                                       white, tip, false));
     g.fillPath (needle);
+}
+
+bool GlueEditor::isBacklit() const
+{
+    // The meter's lamp is lit while the compressor is in: IN pressed, and the host not bypassing it.
+    auto& state = processor.apvts;
+    return state.getRawParameterValue ("in")->load() > 0.5f && state.getRawParameterValue ("bypass")->load() < 0.5f;
 }
 
 void GlueEditor::paintReadout (Graphics& g)
@@ -271,7 +285,7 @@ void GlueEditor::paintReadout (Graphics& g)
 
     g.setColour (Colours::black.withAlpha (0.4f));
     g.fillRoundedRectangle (pill.translated (0.0f, 2.0f), pill.getHeight() * 0.5f);
-    g.setColour (Colour (0xe6141414));
+    g.setColour (Colour (0xe6140c0d));
     g.fillRoundedRectangle (pill, pill.getHeight() * 0.5f);
     g.setColour (Colours::white.withAlpha (0.14f));
     g.drawRoundedRectangle (pill, pill.getHeight() * 0.5f, 1.0f);

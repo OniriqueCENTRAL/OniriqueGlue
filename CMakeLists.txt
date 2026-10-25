@@ -81,7 +81,8 @@ juce_add_plugin(OniriqueGlue
 # The Onirique sigil, and the photographs the front is made of (tools/photo.cpp).
 juce_add_binary_data(GlueAssets SOURCES
     Resources/sigil.png
-    Resources/photo/front.jpg
+    Resources/photo/front-off.jpg
+    Resources/photo/front-on.jpg
     Resources/photo/knob.png
     Resources/photo/trim.png
     Resources/photo/button.png)

@@ -169,7 +169,7 @@ float roundCone (V p, V a, V b, float r1, float r2)
 
 
 //==============================================================================
-enum class Material { panel, face, rim, knob, pointer, bezel, lens, lensLit, steel, blackSteel, hollow };
+enum class Material { panel, face, rim, knob, skirt, pointer, bezel, lens, lensLit, steel, blackSteel, hollow };
 
 /** A part standing on the front, in its own frame: its centre on the origin,
     the front at z = 0, z towards the camera, y down as on the screen. */
@@ -214,32 +214,44 @@ float raise (float d2, float z, float height, float r)
            + std::fmin (std::fmax (wx, wy), 0.0f) - r;
 }
 
-/** The console's knob: a squat cylinder of light grey plastic, its top
-    rounded off and gently domed, a black line from the middle out over the
-    edge and down the side. */
+/** The console's knob, in two tiers: a dark grey skirt at its foot, its
+    edge finely knurled, and standing on it a tall cap of light grey plastic,
+    its top rounded off, gently domed, a ring turned in it; a black line from
+    the middle out over the cap and across the skirt. */
 struct Knob final : Part
 {
-    Knob (float radius, float a) : R (radius), angle (a) { reach = R + 1.0f; top = h + 0.1f * R; }
+    Knob (float radius, float a) : R (radius), angle (a) { reach = 1.02f * R + 1.0f; top = capTop + 0.08f * R; }
 
-    float distance (V p) const override
+    float skirt (V p) const
     {
-        const auto full = h + 0.04f * R;
-        const auto body = roundCylinder (p - V { 0, 0, 0.5f * full }, R, 0.5f * full, 0.22f * R);
-        return std::fmax (body, length (p - V { 0, 0, full - 3.0f * R }) - 3.0f * R);
+        const Turned t (p, angle);
+        const auto knurl = 0.012f * R * std::cos (48.0f * t.theta);
+        return roundCylinder (p - V { 0, 0, 0.5f * skirtTop }, R + knurl, 0.5f * skirtTop, 0.06f * R);
     }
+
+    float cap (V p) const
+    {
+        constexpr float bottom = 0.1f;
+        auto d = roundCylinder (p - V { 0, 0, 0.5f * (bottom * R + capTop + 0.03f * R) }, 0.76f * R,
+                                0.5f * (capTop + 0.03f * R - bottom * R), 0.17f * R);
+        d = std::fmax (d, length (p - V { 0, 0, capTop + 0.03f * R - 3.0f * R }) - 3.0f * R);
+        return std::fmax (d, -torus (p - V { 0, 0, capTop + 0.015f * R }, 0.5f * R, 0.022f * R));
+    }
+
+    float distance (V p) const override { return smin (skirt (p), cap (p), 0.03f * R); }
 
     Material material (V p) const override
     {
         const Turned t (p, angle);
 
-        if (std::fabs (t.across) < 0.085f * R && t.along > 0.12f * R)
+        if (std::fabs (t.across) < 0.075f * R && t.along > 0.1f * R && p.z > 0.6f * skirtTop)
             return Material::pointer;
 
-        return Material::knob;
+        return cap (p) < skirt (p) ? Material::knob : Material::skirt;
     }
 
     float R, angle;
-    float h = 0.52f * R;
+    float skirtTop = 0.24f * R, capTop = 0.82f * R;
 };
 
 /** A square push button: a thick black bezel with sloping sides, and in it
@@ -359,6 +371,7 @@ struct Surface
 struct Scene
 {
     std::vector<const Part*> parts;
+    bool backlit = false;               // the meter's lamp, under the window, lit
     const std::vector<float>* ink = nullptr;
     int inkWidth = 0, inkHeight = 0;
 };
@@ -505,8 +518,8 @@ V studio (V d)
     return { v * 1.02f, v, v * 0.97f };
 }
 
-const V kPanelColour { 0.024f, 0.025f, 0.027f };   // the console's dark grey
-const V kInkColour { 0.74f, 0.74f, 0.72f };
+const V kPanelColour { 0.125f, 0.0145f, 0.017f };  // the red of the range, where the original is grey
+const V kInkColour { 0.78f, 0.77f, 0.75f };
 
 float inkAt (const Scene& scene, float x, float y)
 {
@@ -549,7 +562,7 @@ Surface surfaceAt (const Scene& scene, Hit& hit)
             const auto ink = inkAt (scene, p.x, p.y);
             s.albedo = mix (kPanelColour * (drift * rim), kInkColour, ink);
             s.f0 = grey (0.035f);
-            s.rough = 0.6f - 0.1f * ink;
+            s.rough = 0.48f - 0.1f * ink;
             break;
         }
 
@@ -562,6 +575,17 @@ Surface surfaceAt (const Scene& scene, Hit& hit)
             s.albedo = mix (grey (0.005f + 0.014f * sheen), kInkColour, ink);
             s.f0 = grey (0.04f);
             s.rough = 0.5f;
+
+            // The lamp hidden under the window's lower edge, in the middle:
+            // it lights the card red from below, brightest just over it,
+            // fading as it rises; the white scale catches it most.
+            if (scene.backlit)
+            {
+                const auto dx = (p.x - kBacklightX) / 95.0f, dy = (kMeterBottom + 6.0f - p.y) / 62.0f;
+                const auto reach = std::exp (-std::sqrt (dx * dx + dy * dy) * 2.2f);
+                const auto hot = std::exp (-std::sqrt (dx * dx + dy * dy) * 9.0f);
+                s.emission = V { 1.0f, 0.07f, 0.035f } * ((s.albedo.x * 3.4f + 0.2f) * reach) + V { 1.5f, 0.17f, 0.08f } * hot;
+            }
             break;
         }
 
@@ -571,9 +595,15 @@ Surface surfaceAt (const Scene& scene, Hit& hit)
             s.rough = 0.3f;
             break;
 
+        case Material::skirt:
+            s.albedo = grey (0.03f);
+            s.f0 = grey (0.04f);
+            s.rough = 0.38f;
+            break;
+
         case Material::knob:
-            // Light grey on top, darker down its side towards the front.
-            s.albedo = grey (0.05f + 0.12f * smooth (0.06f * kKnobRadius, 0.36f * kKnobRadius, p.z - (hit.part != nullptr ? hit.part->at.z : 0.0f)));
+            // Light grey on top, a little darker down its side.
+            s.albedo = grey (0.09f + 0.09f * smooth (0.3f * kKnobRadius, 0.7f * kKnobRadius, p.z));
             s.f0 = grey (0.04f);
             s.rough = 0.42f + 0.04f * noise (p * 0.8f);
             break;
@@ -598,14 +628,14 @@ Surface surfaceAt (const Scene& scene, Hit& hit)
 
         case Material::lensLit:
         {
-            // The lamp behind the frosted cap: white in the middle, warmer
-            // and yellow towards its edges.
+            // The lamp behind the frosted cap, blue as the range's lamps: pale
+            // in the middle, deeper towards its edges.
             const auto local = hit.part != nullptr ? p - hit.part->at : p;
             const auto edge = clamp01 (std::fmax (std::fabs (local.x), std::fabs (local.y)) / kCapHalf);
-            s.albedo = { 0.8f, 0.76f, 0.55f };
+            s.albedo = { 0.04f, 0.09f, 0.2f };
             s.f0 = grey (0.04f);
             s.rough = 0.35f;
-            s.emission = mix (V { 1.7f, 1.66f, 1.4f }, V { 1.6f, 1.1f, 0.18f }, smooth (0.35f, 0.95f, edge));
+            s.emission = mix (V { 0.12f, 0.52f, 1.55f }, V { 0.015f, 0.16f, 0.95f }, smooth (0.25f, 0.95f, edge));
             break;
         }
 
@@ -1006,8 +1036,8 @@ std::vector<float> printLettering()
                 const auto degrees = kRateMarkDegrees[i];
                 const auto end = i == 0 || i == kNumRateMarks - 1;
                 dot (around (c.x, c.y, degrees, 32.0f));
-                const auto at = around (c.x, c.y, degrees, end ? 38.0f : 43.0f);
-                text (String (kRateMarks[i], 0), at.x + (i == 0 ? -4.0f : end ? 4.0f : 0.0f), at.y + (end ? 4.0f : 0.0f), 12.5f);
+                const auto at = around (c.x, c.y, degrees, end ? 37.0f : 43.0f);
+                text (String (kRateMarks[i], 0), at.x + (i == 0 ? -7.0f : end ? 7.0f : 0.0f), at.y, 12.5f);
             }
         }
 
@@ -1025,7 +1055,7 @@ std::vector<float> printLettering()
         name ("scfilter", "SC FILTER -Hz", 45.0f);
         name ("headroom", "HR -dB", 29.0f);
         name ("mix", "MIX -%", 45.0f);
-        name ("rate", "RATE -S", 44.0f);
+        name ("rate", "RATE -S", 49.0f);
 
         // The ratio's centre mark, under its knob.
         g.fillRect (Rectangle<float> (127.2f, 530.0f, 1.6f, 6.0f));
@@ -1041,8 +1071,8 @@ std::vector<float> printLettering()
     return coverage;
 }
 
-/** The whole front, with its meter. */
-juce::Image photographFront (int samples, const std::vector<float>& ink)
+/** The whole front, with its meter, its lamp off or lit. */
+juce::Image photographFront (bool lit, int samples, const std::vector<float>& ink)
 {
     Scene scene;
     scene.ink = &ink;
@@ -1051,6 +1081,7 @@ juce::Image photographFront (int samples, const std::vector<float>& ink)
 
     const MeterCase meterCase;
     const ZeroScrew zeroScrew;
+    scene.backlit = lit;
     scene.parts = { &meterCase, &zeroScrew };
 
     const int w = scene.inkWidth, h = scene.inkHeight;
@@ -1066,7 +1097,7 @@ juce::Image photographFront (int samples, const std::vector<float>& ink)
 
             for (int s = 0; s < side * side; ++s)
             {
-                Rng rng (seedOf (x, y, s, 1));
+                Rng rng (seedOf (x, y, s, lit ? 2 : 1));
                 const auto px = ((float) x + ((float) (s % side) + rng.next()) / (float) side) / (float) kPhotoScale;
                 const auto py = ((float) y + ((float) (s / side) + rng.next()) / (float) side) / (float) kPhotoScale;
                 sum = sum + trace (scene, { px, py, 200.0f }, { 0, 0, -1 }, rng);
@@ -1218,9 +1249,15 @@ int main (int argc, char** argv)
     if (wanted ("front"))
     {
         const auto samples = std::max (1, (int) std::lround (64.0f * quality));
-        save (photographFront (samples, printLettering()), folder.getChildFile ("front.jpg"));
-        std::printf ("front.jpg (%.0f s)\n", elapsed());
-        std::fflush (stdout);
+        const auto ink = printLettering();
+
+        for (const auto lit : { false, true })
+        {
+            const auto name = lit ? "front-on.jpg" : "front-off.jpg";
+            save (photographFront (lit, samples, ink), folder.getChildFile (name));
+            std::printf ("%s (%.0f s)\n", name, elapsed());
+            std::fflush (stdout);
+        }
     }
 
     for (const auto& run : kRuns)
@@ -1236,7 +1273,7 @@ int main (int argc, char** argv)
 
     if (only.contains ("preview"))
     {
-        auto front = juce::ImageCache::getFromFile (folder.getChildFile ("front.jpg"));
+        auto front = juce::ImageCache::getFromFile (folder.getChildFile ("front-on.jpg"));
         juce::Image preview (juce::Image::RGB, front.getWidth(), front.getHeight(), false, juce::SoftwareImageType());
         juce::Graphics g (preview);
         g.drawImageAt (front, 0, 0);

@@ -8,7 +8,7 @@ namespace onirique::theme
 
 using juce::Colour;
 
-inline const Colour ember   { 0xffe0b25a };
+inline const Colour ember   { 0xffe23444 };
 inline const Colour mist    { 0xfff6eeee };
 
 inline juce::Font displayFont (float height, bool heavy = true)
