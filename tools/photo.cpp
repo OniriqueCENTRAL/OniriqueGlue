@@ -923,32 +923,21 @@ std::vector<float> printLettering()
         }
 
         {
-            // The bracket, the house's mark in a diamond at its foot.
-            constexpr float dx = 25.0f, dy = 17.0f;
+            // The bracket, the house's mark at its foot, the rule stopping either side of it.
+            const auto sigil = ImageCache::getFromMemory (PhotoData::sigil_png, PhotoData::sigil_pngSize);
+            const auto sw = 24.0f, sh = sw * (float) sigil.getHeight() / (float) sigil.getWidth(), gap = 0.5f * sw + 6.0f;
+
             Path bracket;
-            bracket.startNewSubPath (210.0f - dx - 3.0f, kBracketY);
+            bracket.startNewSubPath (210.0f - gap, kBracketY);
             bracket.lineTo (kRuleLeft + kRuleCorner, kBracketY);
             bracket.quadraticTo (kRuleLeft, kBracketY, kRuleLeft, kBracketY - kRuleCorner);
             bracket.lineTo (kRuleLeft, kBracketTop);
-            bracket.startNewSubPath (210.0f + dx + 3.0f, kBracketY);
+            bracket.startNewSubPath (210.0f + gap, kBracketY);
             bracket.lineTo (kRuleRight - kRuleCorner, kBracketY);
             bracket.quadraticTo (kRuleRight, kBracketY, kRuleRight, kBracketY - kRuleCorner);
             bracket.lineTo (kRuleRight, kBracketTop);
-
-            Path diamond;
-            diamond.addTriangle (210.0f - dx, kBracketY, 210.0f, kBracketY - dy, 210.0f + dx, kBracketY);
-            diamond.addTriangle (210.0f - dx, kBracketY, 210.0f, kBracketY + dy, 210.0f + dx, kBracketY);
-            Path outline;
-            outline.startNewSubPath (210.0f - dx, kBracketY);
-            outline.lineTo (210.0f, kBracketY - dy);
-            outline.lineTo (210.0f + dx, kBracketY);
-            outline.lineTo (210.0f, kBracketY + dy);
-            outline.closeSubPath();
             g.strokePath (bracket, stroke);
-            g.strokePath (outline, PathStrokeType (1.4f));
 
-            const auto sigil = ImageCache::getFromMemory (PhotoData::sigil_png, PhotoData::sigil_pngSize);
-            const auto sw = 24.0f, sh = sw * (float) sigil.getHeight() / (float) sigil.getWidth();
             g.setImageResamplingQuality (Graphics::highResamplingQuality);
             g.drawImage (sigil, Rectangle<float> (sw, sh).withCentre ({ 210.0f, kBracketY }));
         }
