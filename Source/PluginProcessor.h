@@ -6,6 +6,7 @@
 
 #include "License/LicenseGuard.h"
 #include "dsp/Glue.h"
+#include "ui/OniriquePresets.h"
 
 namespace onirique
 {
@@ -51,6 +52,9 @@ public:
     float takeGainReduction() noexcept { return gainReduction.exchange (0.0f); }
 
     AudioProcessorValueTreeState apvts;
+
+    /** The stock presets, the user's, the A/B comparison: what the bar over the front shows. */
+    PresetBank presets;
 
     /** The licence ONIRIQUE CENTRAL wrote on this machine for this plugin, under
         the identifier the plugin has in its catalogue. */

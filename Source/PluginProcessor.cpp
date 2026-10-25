@@ -83,6 +83,46 @@ namespace
 
         return parameters;
     }
+
+    //==============================================================================
+    enum Tags { vocal = 1, drums = 2, bass = 4, instruments = 8, mix = 16, mastering = 32 };
+
+    // The usual ways of setting a bus compressor, as starting points. The stepped controls are given as their
+    // position: attack .1/.3/1/3/10/30 ms, release .1/.3/.6/1.2 s/auto, ratio 2/4/10.
+    std::vector<PresetBank::Stock> stockPresets()
+    {
+        return {
+            { "Default", 0, {} },
+
+            { "Mix Glue", mix, { { "threshold", -4.0f }, { "makeup", 2.0f }, { "attack", 5.0f }, { "release", 4.0f }, { "ratio", 0.0f } } },
+            { "Gentle Bus", mix | mastering, { { "threshold", -2.0f }, { "makeup", 1.0f }, { "attack", 4.0f }, { "release", 2.0f }, { "ratio", 0.0f } } },
+            { "Bass-Safe Mix", mix, { { "threshold", -5.0f }, { "makeup", 2.5f }, { "attack", 5.0f }, { "release", 4.0f }, { "ratio", 0.0f },
+                                      { "scfilter", 90.0f } } },
+            { "Creamy Edge", mix, { { "threshold", -3.0f }, { "makeup", 2.0f }, { "attack", 5.0f }, { "release", 4.0f }, { "ratio", 0.0f },
+                                    { "headroom", 8.0f } } },
+
+            { "Master Bus 2:1", mastering, { { "threshold", -3.0f }, { "makeup", 1.5f }, { "attack", 5.0f }, { "release", 4.0f }, { "ratio", 0.0f },
+                                             { "scfilter", 60.0f } } },
+            { "Loud Master", mastering, { { "threshold", -6.0f }, { "makeup", 4.0f }, { "attack", 5.0f }, { "release", 4.0f }, { "ratio", 1.0f },
+                                          { "headroom", 12.0f } } },
+
+            { "Drum Punch", drums, { { "threshold", -6.0f }, { "makeup", 4.0f }, { "attack", 5.0f }, { "release", 0.0f }, { "ratio", 1.0f } } },
+            { "Drum Smash", drums, { { "threshold", -10.0f }, { "makeup", 8.0f }, { "attack", 2.0f }, { "release", 0.0f }, { "ratio", 2.0f },
+                                     { "mix", 50.0f } } },
+            { "Parallel Crush", drums, { { "threshold", -15.0f }, { "makeup", 12.0f }, { "attack", 0.0f }, { "release", 0.0f }, { "ratio", 2.0f },
+                                         { "mix", 35.0f } } },
+            { "Room Pump", drums, { { "threshold", -12.0f }, { "makeup", 9.0f }, { "attack", 0.0f }, { "release", 1.0f }, { "ratio", 2.0f },
+                                    { "mix", 60.0f } } },
+
+            { "Vocal Leveler", vocal, { { "threshold", -5.0f }, { "makeup", 3.0f }, { "attack", 4.0f }, { "release", 4.0f }, { "ratio", 0.0f } } },
+            { "Vocal Bus Tight", vocal, { { "threshold", -6.0f }, { "makeup", 4.0f }, { "attack", 3.0f }, { "release", 1.0f }, { "ratio", 1.0f } } },
+
+            { "Bass Control", bass, { { "threshold", -6.0f }, { "makeup", 3.0f }, { "attack", 4.0f }, { "release", 1.0f }, { "ratio", 1.0f } } },
+
+            { "Guitar Bus", instruments, { { "threshold", -5.0f }, { "makeup", 3.0f }, { "attack", 4.0f }, { "release", 4.0f }, { "ratio", 1.0f } } },
+            { "Piano & Keys", instruments, { { "threshold", -4.0f }, { "makeup", 2.0f }, { "attack", 5.0f }, { "release", 2.0f }, { "ratio", 0.0f } } },
+        };
+    }
 }
 
 //==============================================================================
@@ -90,7 +130,9 @@ GlueProcessor::GlueProcessor()
     : AudioProcessor (BusesProperties()
                           .withInput ("Input", AudioChannelSet::stereo(), true)
                           .withOutput ("Output", AudioChannelSet::stereo(), true)),
-      apvts (*this, nullptr, "Glue", createLayout())
+      apvts (*this, nullptr, "Glue", createLayout()),
+      // The auto fade is a hand on the fader, not a setting: no preset holds it down.
+      presets (apvts, "Glue", stockPresets(), { "Vocal", "Drums", "Bass", "Instruments", "Mix", "Mastering" }, { "bypass", "fade" })
 {
     auto get = [this] (const char* id) { return apvts.getRawParameterValue (id); };
 
@@ -200,14 +242,21 @@ AudioProcessorEditor* GlueProcessor::createEditor()
 //==============================================================================
 void GlueProcessor::getStateInformation (MemoryBlock& destination)
 {
-    if (const auto xml = apvts.copyState().createXml())
+    auto state = apvts.copyState();
+    presets.writeState (state);
+
+    if (const auto xml = state.createXml())
         copyXmlToBinary (*xml, destination);
 }
 
 void GlueProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     if (const auto xml = getXmlFromBinary (data, sizeInBytes); xml != nullptr && xml->hasTagName (apvts.state.getType()))
-        apvts.replaceState (ValueTree::fromXml (*xml));
+    {
+        auto state = ValueTree::fromXml (*xml);
+        presets.readState (state);
+        apvts.replaceState (state);
+    }
 }
 
 } // namespace onirique

@@ -6,6 +6,7 @@
 #include "License/LicenseOverlay.h"
 #include "PluginProcessor.h"
 #include "ui/Layout.h"
+#include "ui/OniriqueBar.h"
 #include "ui/Theme.h"
 
 namespace onirique
@@ -15,7 +16,8 @@ namespace onirique
     itself, with its lit meter, and each part at the angle its parameter is
     at (tools/photo.cpp renders them). The controls lie unseen over their
     parts; the meter's needle is drawn over its face. The whole front is
-    drawn at one size and scaled as one with the window. */
+    drawn at one size and scaled as one with the window, the bar over it
+    (ui/OniriqueBar.h, on two rows: the front is narrow) with it. */
 class GlueEditor final : public AudioProcessorEditor,
                          private Timer
 {
@@ -26,6 +28,7 @@ public:
     void resized() override;
 
     static constexpr int kWidth = layout::kWidth, kHeight = layout::kHeight;
+    static constexpr int kBarHeight = 84, kTotalHeight = kBarHeight + kHeight;
 
 private:
     struct Front final : Component
@@ -56,6 +59,7 @@ private:
     license::theme::Fonts fonts;
 
     Front front;
+    nuit::Bar bar;
     Slider threshold, makeup, attack, release, ratio, scFilter, headroom, mix, rate;
     ToggleButton in, fade;
     std::vector<Part> parts;

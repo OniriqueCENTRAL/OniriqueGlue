@@ -35,6 +35,7 @@ namespace
 GlueEditor::GlueEditor (GlueProcessor& p)
     : AudioProcessorEditor (&p),
       processor (p),
+      bar (p.presets, p.apvts, "GLUE", photo ("sigil.png"), kWidth, kWidth * 6 / 5),
       frontOff (photo ("front-off.jpg")),
       frontOn (photo ("front-on.jpg"))
 {
@@ -44,6 +45,8 @@ GlueEditor::GlueEditor (GlueProcessor& p)
     front.onPaintOver = [this] (Graphics& g) { paintReadout (g); };
     front.setInterceptsMouseClicks (false, true);
     addAndMakeVisible (front);
+    addAndMakeVisible (bar);
+    jassert (nuit::Bar::heightFor (kWidth) == kBarHeight);
 
     auto& state = processor.apvts;
     Component* components[] = { &threshold, &makeup, &attack, &release, &ratio, &in, &scFilter, &headroom, &mix, &rate, &fade };
@@ -94,17 +97,18 @@ GlueEditor::GlueEditor (GlueProcessor& p)
     licenseOverlay = std::make_unique<onirique::license::Overlay> ("GLUE", processor.license);
     addAndMakeVisible (*licenseOverlay);
 
-    // The front keeps its proportions; the window grows by zooming it.
-    constexpr int minWidth = 340, maxWidth = 840;
+    // The front and its bar keep their proportions; the window grows by zooming them, from 75 to 200 %
+    // of the size it opens at.
+    constexpr int defaultWidth = kWidth * 6 / 5, minWidth = defaultWidth * 3 / 4, maxWidth = defaultWidth * 2;
     setResizable (true, true);
-    setResizeLimits (minWidth, minWidth * kHeight / kWidth, maxWidth, maxWidth * kHeight / kWidth);
-    getConstrainer()->setFixedAspectRatio ((double) kWidth / (double) kHeight);
+    setResizeLimits (minWidth, minWidth * kTotalHeight / kWidth, maxWidth, maxWidth * kTotalHeight / kWidth);
+    getConstrainer()->setFixedAspectRatio ((double) kWidth / (double) kTotalHeight);
 
     // taille d'ouverture : la règle commune des plugins ONIRIQUE (ui/OniriqueWindowSize.h)
-    const auto opening = onirique::window::openingSize ({}, "ONIRIQUE GLUE", { kWidth * 6 / 5, kHeight * 6 / 5 },
-                                                        { minWidth, minWidth * kHeight / kWidth }, { maxWidth, maxWidth * kHeight / kWidth });
-    const auto width = jmin (opening.x, opening.y * kWidth / kHeight);
-    setSize (width, width * kHeight / kWidth);
+    const auto opening = onirique::window::openingSize ({}, "ONIRIQUE GLUE", { defaultWidth, defaultWidth * kTotalHeight / kWidth },
+                                                        { minWidth, minWidth * kTotalHeight / kWidth }, { maxWidth, maxWidth * kTotalHeight / kWidth });
+    const auto width = jmin (opening.x, opening.y * kWidth / kTotalHeight);
+    setSize (width, width * kTotalHeight / kWidth);
 
     timerCallback();
     startTimerHz (60);
@@ -120,12 +124,15 @@ void GlueEditor::resized()
 {
     const auto scale = (float) getWidth() / (float) kWidth;
 
-    front.setBounds (0, 0, kWidth, kHeight);
+    front.setBounds (0, kBarHeight, kWidth, kHeight);
     front.setTransform (AffineTransform::scale (scale));
 
-    // The licence badge sits at the top on the right, beside the maker's name.
+    // The licence badge has its place in the bar, beside the menu.
+    bar.setPillWidth (licenseOverlay != nullptr ? licenseOverlay->pillWidth() : 0);
+    bar.place (scale, getLocalBounds());
+
     if (licenseOverlay != nullptr)
-        licenseOverlay->fit (getLocalBounds(), scale, { 284, 12, 130, 32 }, Justification::centredRight);
+        licenseOverlay->fit (getLocalBounds(), scale, bar.getPillArea(), Justification::centredRight);
 }
 
 void GlueEditor::timerCallback()
