@@ -51,7 +51,6 @@ GlueEditor::GlueEditor (GlueProcessor& p)
             g.reduceClipRegion (clip);
             paintFront (g);
         }
-        paintGlow (g);
     };
     front.onPaintOver = [this] (Graphics& g) { paintReadout (g); };
     front.setInterceptsMouseClicks (false, true);
