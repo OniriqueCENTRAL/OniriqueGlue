@@ -160,7 +160,9 @@ void GlueEditor::timerCallback()
 
     // la lueur de la pièce touchée s'allume et s'éteint en douceur
     {
-        const float target = shown != nullptr ? 1.0f : 0.0f;
+        // seulement au survol d'un potard : rien sur les boutons, et rien pendant qu'on le tourne
+        const bool knob = shown != nullptr && dynamic_cast<Slider*> (shown->component) != nullptr;
+        const float target = knob && ! ModifierKeys::currentModifiers.isAnyMouseButtonDown() ? 1.0f : 0.0f;
         if (shown != nullptr) glowPart = shown;
         if (std::abs (glow - target) > 0.01f) { glow += (target - glow) * 0.3f; front.repaint(); }
         else glow = target;
@@ -341,8 +343,10 @@ void GlueEditor::retint()
         for (auto* image : all)
             daOriginals.push_back (*image);
 
+    // les deux façades (éteinte, rétroéclairée) gardent les couleurs du cadran du VU ; les pièces sont recolorées en entier
+    const auto meter = meterArea();
     for (size_t i = 0; i < all.size() && i < daOriginals.size(); ++i)
-        *all[i] = da::tintPhoto (daOriginals[i]);
+        *all[i] = i < 2 ? da::tintPhoto (daOriginals[i], meter, (float) kWidth) : da::tintPhoto (daOriginals[i]);
 }
 
 void GlueEditor::paintGlow (Graphics& g)
