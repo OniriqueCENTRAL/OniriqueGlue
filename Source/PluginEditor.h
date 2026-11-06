@@ -7,6 +7,7 @@
 #include "PluginProcessor.h"
 #include "ui/Layout.h"
 #include "ui/OniriqueBar.h"
+#include "ui/OniriquePhotoDA.h"   // la DA de VOCALBOX autour de la façade
 #include "ui/Theme.h"
 
 namespace onirique
@@ -28,7 +29,9 @@ public:
     void resized() override;
 
     static constexpr int kWidth = layout::kWidth, kHeight = layout::kHeight;
-    static constexpr int kBarHeight = 84, kTotalHeight = kBarHeight + kHeight;
+    // la façade posée en panneau de verre sur le fond nuit de VOCALBOX, à kMargin des bords
+    static constexpr int kMargin = 16, kUnits = kWidth + 2 * kMargin;
+    static constexpr int kBarHeight = kUnits < 700 ? 84 : 50, kTotalHeight = kBarHeight + kHeight + 2 * kMargin;
 
 private:
     struct Front final : Component
@@ -49,6 +52,13 @@ private:
     };
 
     void timerCallback() override;
+    void paint (Graphics&) override;
+    void retint();                  // la peinture des photos dans la couleur de l'interface
+    void paintGlow (Graphics&);     // la lueur sur la pièce touchée
+    std::vector<Image> daOriginals; // les photos telles qu'elles sont livrées
+    Image daBackdrop;               // le fond de VOCALBOX, calculé une fois par taille
+    int themeSeen = -1;
+    float glow = 0.0f;
     void paintFront (Graphics&);
     void paintNeedle (Graphics&);
     void paintReadout (Graphics&);
@@ -78,6 +88,7 @@ private:
 
     /** What the control in hand, or under the pointer, is set to; shown beside it. */
     const Part* shown = nullptr;
+    const Part* glowPart = nullptr;   // la dernière pièce touchée, le temps que sa lueur s'éteigne
     String readout;
 
     TooltipWindow tooltips { this, 2000 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <functional>
 
 //==============================================================================
 //  Les presets d'un plugin ONIRIQUE bâti sur un AudioProcessorValueTreeState : ceux d'usine, écrits dans le code,
@@ -84,6 +85,10 @@ public:
 
     //==============================================================================
     // Ce à quoi le navigateur restreint la liste. Les flèches de la barre passent d'un preset à l'autre parmi ceux-là.
+    /** Facultatif : un paramètre pour lequel ceci rend vrai garde sa valeur quand un preset se charge (le MIX verrouillé
+        de VERB, par exemple). Vide : tout ce que le preset range est appliqué. */
+    std::function<bool (const juce::String&)> keep;
+
     Source source = anySource;
     int tagFilter = 0;              // des bits : un preset passe s'il a l'un d'eux
     bool favouritesOnly = false;
@@ -422,7 +427,7 @@ private:
         {
             auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (parameter);
 
-            if (ranged == nullptr || ! isStored (ranged->paramID))
+            if (ranged == nullptr || ! isStored (ranged->paramID) || (keep != nullptr && keep (ranged->paramID)))
                 continue;
 
             // Ce qu'un preset ne nomme pas revient à sa valeur par défaut : un vieux preset garde son sens
