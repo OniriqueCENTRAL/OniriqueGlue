@@ -55,7 +55,7 @@ private:
     void paint (Graphics&) override;
     void retint();                  // la peinture des photos dans la couleur de l'interface
     void paintGlow (Graphics&);     // la lueur sur la pièce touchée
-    std::vector<Image> daOriginals; // les photos telles qu'elles sont livrées
+    std::vector<da::PhotoTint> daTints;   // les photos telles qu'elles sont livrées, prêtes à recolorer
     Image daBackdrop;               // le fond de VOCALBOX, calculé une fois par taille
     int themeSeen = -1;
     float glow = 0.0f;

@@ -293,7 +293,7 @@ void GlueEditor::paintNeedle (Graphics& g)
 
     // Backlit, its root catches the lamp's red from below.
     const Colour white (0xffe6e4dc);
-    g.setGradientFill (ColourGradient (isBacklit() ? Colour (0xffff7a66) : white, pivot.getPointOnCircumference (kNeedleLength * 0.45f, angle),
+    g.setGradientFill (ColourGradient (isBacklit() ? onirique::look::tint (0xffff7a66) : white, pivot.getPointOnCircumference (kNeedleLength * 0.45f, angle),
                                        white, tip, false));
     g.fillPath (needle);
 }
@@ -339,14 +339,17 @@ void GlueEditor::retint()
     std::vector<Image*> all { &frontOff, &frontOn };
     for (auto& part : parts) all.push_back (&part.photos);
 
-    if (daOriginals.empty())
-        for (auto* image : all)
-            daOriginals.push_back (*image);
-
     // les deux façades (éteinte, rétroéclairée) gardent les couleurs du cadran du VU ; les pièces sont recolorées en entier
     const auto meter = meterArea();
-    for (size_t i = 0; i < all.size() && i < daOriginals.size(); ++i)
-        *all[i] = i < 2 ? da::tintPhoto (daOriginals[i], meter, (float) kWidth) : da::tintPhoto (daOriginals[i]);
+    if (daTints.empty())
+        for (size_t i = 0; i < all.size(); ++i)
+        {
+            daTints.emplace_back();
+            if (i < 2) daTints.back().prepare (*all[i], meter, (float) kWidth); else daTints.back().prepare (*all[i]);
+        }
+
+    for (size_t i = 0; i < all.size() && i < daTints.size(); ++i)
+        *all[i] = daTints[i].render();
 }
 
 void GlueEditor::paintGlow (Graphics& g)
