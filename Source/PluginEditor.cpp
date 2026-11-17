@@ -108,9 +108,9 @@ GlueEditor::GlueEditor (GlueProcessor& p)
     licenseOverlay = std::make_unique<onirique::license::Overlay> ("GLUE", processor.license);
     addAndMakeVisible (*licenseOverlay);
 
-    // The front and its bar keep their proportions; the window grows by zooming them, from 75 to 200 %
-    // of the size it opens at.
-    constexpr int defaultWidth = kUnits * 6 / 5, minWidth = defaultWidth * 3 / 4, maxWidth = defaultWidth * 2;
+    // The front and its bar keep their proportions; the window grows by zooming them. It opens 20 % smaller
+    // than it used to (96 % of the drawn size); the limits stay where they were.
+    constexpr int defaultWidth = kUnits * 24 / 25, minWidth = kUnits * 9 / 10, maxWidth = kUnits * 12 / 5;
     setResizable (true, true);
     setResizeLimits (minWidth, minWidth * kTotalHeight / kUnits, maxWidth, maxWidth * kTotalHeight / kUnits);
     getConstrainer()->setFixedAspectRatio ((double) kUnits / (double) kTotalHeight);
